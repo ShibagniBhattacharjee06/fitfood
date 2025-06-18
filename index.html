@@ -1,0 +1,394 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Calorie Checker</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r134/three.min.js"></script>
+  <style>
+    body {
+      background: linear-gradient(135deg, #0f0f30, #4e2b8c);
+      min-height: 100vh;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      font-family: 'Arial', sans-serif;
+      overflow-x: hidden;
+      margin: 0;
+    }
+    .card {
+      transition: transform 0.6s cubic-bezier(0.4, 0, 0.2, 1), box-shadow 0.6s;
+      transform-style: preserve-3d;
+    }
+    .card:hover {
+      transform: translateY(-10px) rotateX(10deg) rotateY(10deg);
+      box-shadow: 0 20px 30px rgba(0, 0, 0, 0.3);
+    }
+    .upload-area {
+      border: 3px dashed #9ca3af;
+      transition: all 0.3s ease;
+    }
+    .upload-area.dragover {
+      background-color: #e5e7eb;
+      border-color: #3b82f6;
+    }
+    #canvas {
+      position: fixed;
+      top: 0;
+      left: 0;
+      z-index: -1;
+      opacity: 0.3;
+      width: 100%;
+      height: 100%;
+    }
+    #preview {
+      transition: opacity 0.5s ease, transform 0.5s ease;
+      opacity: 0;
+      transform: scale(0.95);
+    }
+    #preview.visible {
+      opacity: 1;
+      transform: scale(1);
+    }
+    #imagePreview {
+      max-height: 300px;
+      width: auto;
+      max-width: 100%;
+      border-radius: 12px;
+      box-shadow: 0 8px 16px rgba(0, 0, 0, 0.2);
+      transition: box-shadow 0.3s ease;
+    }
+    #imagePreview:hover {
+      box-shadow: 0 12px 24px rgba(0, 0, 0, 0.3);
+    }
+    @media (max-width: 768px) {
+      .container {
+        padding: 1rem;
+      }
+      .upload-area {
+        padding: 1.5rem;
+      }
+      h1 {
+        font-size: 2.5rem;
+      }
+      .url-input {
+        flex-direction: column;
+        gap: 0.5rem;
+      }
+      .url-input input, .url-input button {
+        width: 100%;
+        border-radius: 0.5rem;
+      }
+      #imagePreview {
+        max-height: 200px;
+      }
+      #results {
+        grid-template-columns: 1fr;
+      }
+    }
+    @media (max-width: 480px) {
+      h1 {
+        font-size: 1.5rem;
+      }
+      .upload-area {
+        padding: 1rem;
+      }
+      .card {
+        padding: 0.75rem;
+      }
+      #imagePreview {
+        max-height: 150px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <canvas id="canvas"></canvas>
+  <div class="container mx-auto p-4 sm:p-6 max-w-4xl">
+    <h1 style="font-size: 89px; font-weight: 900; color: white; text-align: center; margin-bottom: 2rem; text-shadow: 2px 2px 10px rgba(0,0,0,0.5); letter-spacing: 2px; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;">
+      FoodLens
+    </h1>
+    
+    <div class="upload-area bg-white rounded-lg shadow-lg p-4 sm:p-6 mb-8 text-center">
+      <h2 class="text-lg sm:text-xl font-semibold mb-4">Upload, Take a Picture, or Use an Image URL</h2>
+      <div class="flex flex-wrap justify-center gap-2 mb-4">
+        <input type="file" id="foodImageUpload" accept="image/*" class="hidden">
+        <input type="file" id="foodImageCapture" accept="image/*" capture="environment" class="hidden">
+        <button id="uploadBtn" class="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition">Upload Image</button>
+        <button id="cameraBtn" class="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition">Take Picture</button>
+      </div>
+      <p class="text-gray-500 mb-4">Or drag and drop an image here</p>
+      <div class="url-input flex flex-col sm:flex-row justify-center mb-4 gap-2">
+        <input type="url" id="imageUrl" placeholder="Paste GitHub image URL (e.g., https://raw.githubusercontent.com/...)" class="border rounded-lg p-2 w-full max-w-md focus:outline-none focus:ring-2 focus:ring-blue-500">
+        <button id="urlBtn" class="bg-purple-600 text-white px-4 py-2 rounded-lg hover:bg-purple-700 transition">Analyze URL</button>
+      </div>
+      <div id="preview" class="mt-4">
+        <img id="imagePreview" class="mx-auto" alt="Food Preview">
+      </div>
+    </div>
+
+    <div id="results" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6"></div>
+  </div>
+
+  <script>
+    // Three.js animation
+    const scene = new THREE.Scene();
+    const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+    const renderer = new THREE.WebGLRenderer({ canvas: document.getElementById('canvas'), alpha: true });
+    renderer.setSize(window.innerWidth, window.innerHeight);
+
+    const geometry = new THREE.TorusKnotGeometry(10, 3, 100, 16);
+    const material = new THREE.MeshBasicMaterial({ color: 0x3b82f6, wireframe: true });
+    const torusKnot = new THREE.Mesh(geometry, material);
+    scene.add(torusKnot);
+    camera.position.z = 30;
+
+    function animate() {
+      requestAnimationFrame(animate);
+      torusKnot.rotation.x += 0.01;
+      torusKnot.rotation.y += 0.01;
+      renderer.render(scene, camera);
+    }
+    animate();
+
+    window.addEventListener('resize', () => {
+      renderer.setSize(window.innerWidth, window.innerHeight);
+      camera.aspect = window.innerWidth / window.innerHeight;
+      camera.updateProjectionMatrix();
+    });
+
+    // App logic
+    document.addEventListener('DOMContentLoaded', () => {
+      console.log('DOM loaded');
+      const foodImageUploadInput = document.getElementById('foodImageUpload');
+      const foodImageCaptureInput = document.getElementById('foodImageCapture');
+      const uploadBtn = document.getElementById('uploadBtn');
+      const cameraBtn = document.getElementById('cameraBtn');
+      const urlBtn = document.getElementById('urlBtn');
+      const imageUrlInput = document.getElementById('imageUrl');
+      const uploadArea = document.querySelector('.upload-area');
+      const preview = document.getElementById('preview');
+      const imagePreview = document.getElementById('imagePreview');
+      const results = document.getElementById('results');
+
+      urlBtn.disabled = true;
+      urlBtn.classList.add('opacity-50', 'cursor-not-allowed');
+
+      uploadBtn.addEventListener('click', () => {
+        console.log('Upload button clicked');
+        foodImageUploadInput.click();
+      });
+      cameraBtn.addEventListener('click', () => {
+        console.log('Camera button clicked');
+        foodImageCaptureInput.click();
+      });
+      urlBtn.addEventListener('click', () => {
+        const url = imageUrlInput.value.trim();
+        if (url && isValidUrl(url)) {
+          handleImageUrl(url);
+        } else {
+          displayError('Please enter a valid image URL');
+        }
+      });
+
+      imageUrlInput.addEventListener('input', () => {
+        const url = imageUrlInput.value.trim();
+        if (url && isValidUrl(url)) {
+          urlBtn.disabled = false;
+          urlBtn.classList.remove('opacity-50', 'cursor-not-allowed');
+        } else {
+          urlBtn.disabled = true;
+          urlBtn.classList.add('opacity-50', 'cursor-not-allowed');
+        }
+      });
+
+      uploadArea.addEventListener('dragover', (e) => {
+        e.preventDefault();
+        uploadArea.classList.add('dragover');
+      });
+
+      uploadArea.addEventListener('dragleave', () => {
+        uploadArea.classList.remove('dragover');
+      });
+
+      uploadArea.addEventListener('drop', (e) => {
+        e.preventDefault();
+        uploadArea.classList.remove('dragover');
+        const file = e.dataTransfer.files[0];
+        if (file && file.type.startsWith('image/')) {
+          handleImageFile(file);
+        } else {
+          displayError('Please drop a valid image file');
+        }
+      });
+
+      foodImageUploadInput.addEventListener('change', () => {
+        if (foodImageUploadInput.files.length > 0) {
+          handleImageFile(foodImageUploadInput.files[0]);
+        }
+      });
+
+      foodImageCaptureInput.addEventListener('change', () => {
+        if (foodImageCaptureInput.files.length > 0) {
+          const file = foodImageCaptureInput.files[0];
+          console.log('Camera Image File:', file);
+          if (validateImageFile(file)) {
+            handleImageFile(file);
+          } else {
+            displayError('Captured image is invalid or too large (max 5MB)');
+            resetInputs();
+          }
+        }
+      });
+
+      function validateImageFile(file) {
+        const maxSizeInMB = 5;
+        const maxSizeInBytes = maxSizeInMB * 1024 * 1024;
+        const allowedTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
+        return allowedTypes.includes(file.type) && file.size <= maxSizeInBytes;
+      }
+
+      function isValidUrl(string) {
+        try {
+          new URL(string);
+          return string.match(/\.(jpeg|jpg|png|gif|webp)$/i);
+        } catch (_) {
+          return false;
+        }
+      }
+
+      function handleImageFile(file) {
+        const reader = new FileReader();
+        reader.onload = (e) => {
+          imagePreview.src = e.target.result;
+          preview.classList.add('visible');
+          imageUrlInput.disabled = true;
+          urlBtn.disabled = true;
+          urlBtn.classList.add('opacity-50', 'cursor-not-allowed');
+          uploadToBackend(file);
+        };
+        reader.readAsDataURL(file);
+      }
+
+      function handleImageUrl(url) {
+        imagePreview.src = url;
+        preview.classList.add('visible');
+        foodImageUploadInput.disabled = true;
+        foodImageCaptureInput.disabled = true;
+        uploadBtn.disabled = true;
+        cameraBtn.disabled = true;
+        uploadBtn.classList.add('opacity-50', 'cursor-not-allowed');
+        cameraBtn.classList.add('opacity-50', 'cursor-not-allowed');
+        fetchCalorieData(url);
+      }
+
+      async function uploadToBackend(file) {
+        const formData = new FormData();
+        formData.append('image', file);
+        try {
+          const response = await fetch('http://localhost:3000/upload', {
+            method: 'POST',
+            body: formData
+          });
+          const data = await response.json();
+          if (data.success) {
+            fetchCalorieData(data.url);
+          } else {
+            displayError('Failed to upload image');
+            resetInputs();
+          }
+        } catch (error) {
+          console.error('Upload Error:', error);
+          displayError('Error uploading image');
+          resetInputs();
+        }
+      }
+
+      async function fetchCalorieData(imageUrl) {
+        try {
+          const response = await fetch('http://localhost:3000/analyze', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ imageUrl })
+          });
+          const data = await response.json();
+          if (data.success && data.items) {
+            if (data.items.length === 0) {
+              displayError('No food items detected in the image');
+            } else {
+              displayResults(data.items);
+            }
+          } else {
+            displayError(data.error || 'Failed to analyze image');
+          }
+        } catch (error) {
+          console.error('Analysis Error:', error);
+          displayError('Error analyzing image');
+        } finally {
+          resetInputs();
+        }
+      }
+
+      function displayResults(items) {
+        results.innerHTML = '';
+        items.forEach(item => {
+          const calories = item.total_calories ?? 'N/A';
+          const protein = item.total_protein ?? item.total_protien ?? 'N/A';
+          const carbs = item.total_carbs ?? item.carbs ?? item.toal_carbs ?? 'N/A';
+          const fats = item.total_fats ?? item.fats ?? item.toal_fats ?? 'N/A';
+          const card = document.createElement('div');
+          card.className = 'card bg-white rounded-lg shadow-lg p-4 sm:p-6 transform';
+          card.innerHTML = `
+            <h3 class="text-lg sm:text-xl font-bold mb-2">${item.item_name ?? 'Unknown Item'}</h3>
+            <p class="text-xl sm:text-2xl text-blue-600">${calories} kcal</p>
+            <p class="text-gray-600">Protein: ${protein}g</p>
+            <p class="text-gray-600">Carbs: ${carbs}g</p>
+            <p class="text-gray-600">Fat: ${fats}g</p>
+          `;
+          results.appendChild(card);
+          card.style.opacity = '0';
+          card.style.transform = 'translateY(20px) rotateX(-10deg)';
+          setTimeout(() => {
+            card.style.opacity = '1';
+            card.style.transform = 'translateY(0) rotateX(0)';
+          }, 100);
+        });
+      }
+
+      function displayError(message) {
+        const errorCard = document.createElement('div');
+        errorCard.className = 'card bg-red-100 rounded-lg shadow-lg p-4 sm:p-6 transform';
+        errorCard.innerHTML = `
+          <h3 class="text-lg sm:text-xl font-bold mb-2 text-red-600">Error</h3>
+          <p class="text-gray-600">${message}</p>
+        `;
+        results.innerHTML = '';
+        results.appendChild(errorCard);
+        errorCard.style.opacity = '0';
+        errorCard.style.transform = 'translateY(20px) rotateX(-10deg)';
+        setTimeout(() => {
+          errorCard.style.opacity = '1';
+          errorCard.style.transform = 'translateY(0) rotateX(0)';
+        }, 100);
+      }
+
+      function resetInputs() {
+        foodImageUploadInput.disabled = false;
+        foodImageCaptureInput.disabled = false;
+        imageUrlInput.disabled = false;
+        uploadBtn.disabled = false;
+        cameraBtn.disabled = false;
+        urlBtn.disabled = !isValidUrl(imageUrlInput.value.trim());
+        uploadBtn.classList.remove('opacity-50', 'cursor-not-allowed');
+        cameraBtn.classList.remove('opacity-50', 'cursor-not-allowed');
+        if (isValidUrl(imageUrlInput.value.trim())) {
+          urlBtn.classList.remove('opacity-50', 'cursor-not-allowed');
+        } else {
+          urlBtn.classList.add('opacity-50', 'cursor-not-allowed');
+        }
+      }
+    });
+  </script>
+</body>
+</html>
