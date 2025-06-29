@@ -1,5 +1,10 @@
 # 🍕 FoodLens – AI-Powered Food Recognition & Nutrition Analyzer
 
+> **📁 This is the frontend repository.**  
+> 👉 For the backend code, visit: [calorie-checker-backend](https://github.com/ShibagniBhattacharjee06/calorie-checker-backend)
+
+---
+
 ## 📄 Project Description
 **FoodLens** is a full-stack AI web application that allows users to upload a photo of their meal and receive an instant breakdown of its nutritional content — including calories, carbs, fats, and protein — item by item. Built using computer vision and language models, the app provides smart, real-time insights into what you're really eating.
 
@@ -30,3 +35,7 @@ To empower individuals to make healthier food choices using AI by offering an ac
 ## 🙌 Acknowledgements
 This project was developed as part of the **AI Wallah Internship Program**.  
 Thanks to the mentors and the AI Wallah team for the guidance and opportunity!
+
+## 👤 Author
+**Shibagni Bhattacharjee**  
+🔗 [LinkedIn](https://www.linkedin.com/in/shibagni-bhattacharjee/)
