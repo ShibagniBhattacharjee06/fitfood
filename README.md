@@ -36,6 +36,4 @@ To empower individuals to make healthier food choices using AI by offering an ac
 This project was developed as part of the **AI Wallah Internship Program**.  
 Thanks to the mentors and the AI Wallah team for the guidance and opportunity!
 
-## 👤 Author
-**Shibagni Bhattacharjee**  
-🔗 [LinkedIn](https://www.linkedin.com/in/shibagni-bhattacharjee/)
+
